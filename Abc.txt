@@ -1,0 +1,159 @@
+
+from pyspark.sql import SparkSession
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, BooleanType, DateType, TimestampType
+import random
+import datetime
+
+# Initialize SparkSession
+spark = SparkSession.builder \
+    .appName("DataGenerator") \
+    .getOrCreate()
+
+# Example existing PySpark DataFrames with schemas (replace with your actual DataFrames)
+df_table1 = spark.createDataFrame([], StructType([
+    StructField("column1", StringType(), True),
+    StructField("column2", IntegerType(), True),
+    StructField("column3", DoubleType(), True)
+]))
+
+df_table2 = spark.createDataFrame([], StructType([
+    StructField("column1", StringType(), True),
+    StructField("column2", IntegerType(), True),
+    StructField("column4", BooleanType(), True)
+]))
+
+# Configuration variables
+tables = [
+    {'name': 'table1', 'num_records': 100},
+    {'name': 'table2', 'num_records': 200}
+]
+
+join_conditions = [
+    ['table1', 'column1', 'table2', 'column2']
+]
+
+filter_conditions = [
+    {'table': 'table1', 'column': 'column1', 'value': 'specific_value1'},
+    {'table': 'table2', 'column': 'column2', 'value': 'specific_value2'}
+]
+
+predefined_values = {
+    'table1': {
+        'column1': ['value1', 'value2', 'value3']
+    },
+    'table2': {
+        'column2': ['value4', 'value5', 'value6']
+    }
+}
+
+# Generate Sample Data
+def generate_value(col_type):
+    if col_type == StringType():
+        return ''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=10))
+    elif col_type == IntegerType():
+        return random.randint(1, 100)
+    elif col_type == DoubleType():
+        return random.uniform(1.0, 100.0)
+    elif col_type == BooleanType():
+        return random.choice([True, False])
+    elif col_type == DateType():
+        return datetime.date.today()
+    elif col_type == TimestampType():
+        return datetime.datetime.now()
+    # Add more types as needed
+    return None
+
+def generate_sample_data(schema, num_records=100, predefined_values=None):
+    data = []
+    for _ in range(num_records):
+        record = {}
+        for field in schema:
+            col_name = field.name
+            col_type = field.dataType
+            if predefined_values and col_name in predefined_values:
+                record[col_name] = random.choice(predefined_values[col_name])
+            else:
+                record[col_name] = generate_value(col_type)
+        data.append(record)
+    return data
+
+# Ensure Referential Integrity
+def ensure_referential_integrity(data, join_conditions):
+    for condition in join_conditions:
+        table1_name, column1_name, table2_name, column2_name = condition
+        table1_records = data[table1_name]
+        table2_records = data[table2_name]
+        
+        for record1 in table1_records:
+            matching_records = [r for r in table2_records if r[column2_name] == record1[column1_name]]
+            if matching_records:
+                record1[column1_name] = matching_records[0][column2_name]
+    return data
+
+# Apply Filter Conditions
+def apply_filter_conditions(data, filter_conditions):
+    for condition in filter_conditions:
+        table_name = condition['table']
+        column_name = condition['column']
+        value = condition['value']
+        for record in data[table_name]:
+            record[column_name] = value
+    return data
+
+# Define the DataGenerator class
+class DataGenerator:
+    def __init__(self, tables, join_conditions, filter_conditions, predefined_values):
+        self.tables = tables
+        self.join_conditions = join_conditions
+        self.filter_conditions = filter_conditions
+        self.predefined_values = predefined_values
+        self.data = {}
+
+    def generate_data(self, dfs):
+        for table_config, df in zip(self.tables, dfs):
+            table_name = table_config['name']
+            num_records = table_config['num_records']
+            schema = df.schema
+            self.data[table_name] = generate_sample_data(
+                schema,
+                num_records,
+                self.predefined_values.get(table_name, {})
+            )
+
+    def apply_referential_integrity(self):
+        for condition in self.join_conditions:
+            table1_name, column1_name, table2_name, column2_name = condition
+            table1_records = self.data[table1_name]
+            table2_records = self.data[table2_name]
+            
+            for record1 in table1_records:
+                matching_records = [r for r in table2_records if r[column2_name] == record1[column1_name]]
+                if matching_records:
+                    record1[column1_name] = matching_records[0][column2_name]
+
+    def apply_filter_conditions(self):
+        for condition in self.filter_conditions:
+            table_name = condition['table']
+            column_name = condition['column']
+            value = condition['value']
+            for record in self.data[table_name]:
+                record[column_name] = value
+
+    def get_data(self):
+        return self.data
+
+    def print_data(self):
+        for table, records in self.data.items():
+            print(f"Data for table {table}:")
+            for record in records:
+                print(record)
+            print("\n")
+
+# Run the DataGenerator
+if __name__ == "__main__":
+    generator = DataGenerator(tables, join_conditions, filter_conditions, predefined_values)
+    dfs = [df_table1, df_table2]  # Replace with your actual DataFrames
+    generator.generate_data(dfs)
+    generator.apply_referential_integrity()
+    generator.apply_filter_conditions()
+    generator.print_data()
