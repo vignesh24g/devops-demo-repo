@@ -1,0 +1,24 @@
+k
+tables:
+  - name: table1
+    num_records: 100
+  - name: table2
+    num_records: 200
+
+join_conditions:
+  - [table1, column1, table2, column2]
+  - [table3, column3, table4, column4]
+
+filter_conditions:
+  - table: table1
+    column: column1
+    value: specific_value1
+  - table: table2
+    column: column2
+    value: specific_value2
+
+predefined_values:
+  table1:
+    column1: [value1, value2, value3]
+  table2:
+    column2: [value4, value5, value6]
